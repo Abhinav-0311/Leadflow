@@ -1,5 +1,7 @@
 # LeadFlow
 
+[![Checks](https://github.com/Abhinav-0311/Leadflow/actions/workflows/checks.yml/badge.svg)](https://github.com/Abhinav-0311/Leadflow/actions/workflows/checks.yml)
+
 A single-screen CRM for tracking leads, logging discussions, and managing follow-ups. Built for the PravarAI fullstack internship assessment with Next.js, TypeScript, FastAPI, and SQLite.
 
 ![LeadFlow workspace](docs/screenshots/workspace.png)
@@ -78,6 +80,8 @@ Database paths are relative to the backend working directory. SQLite is the supp
 - Save a note and optionally schedule a follow-up. Both the dialog and the list update from the saved API response.
 - Update a lead's status from the dialog and retain it after a refresh or restart.
 - Recognize overdue follow-ups by an explicit red “Overdue” label.
+- Narrow the list to due-today or overdue follow-ups, combined with name and status filters.
+- Mark a follow-up complete from the lead dialog. The current reminder clears immediately while the original discussion and scheduled date stay in history.
 - Use the app with a keyboard or at a mobile viewport width.
 
 Forms show saving states, retain drafts when requests fail, and confirm before discarding unsaved work. Empty lists, no search matches, empty timelines, and failed loads each have a relevant next action.
@@ -89,6 +93,8 @@ Forms show saving states, retain drafts when requests fail, and confirm before d
 - A follow-up earlier than the current time is overdue, including an elapsed appointment today. Today's elapsed appointments stay in the pinned section.
 - Search and status filters apply to both sections. Other leads are ordered by latest discussion, falling back to creation time. Equal timestamps use IDs for a stable order.
 - A new note without a follow-up keeps the existing appointment. A new scheduled follow-up replaces the lead's current appointment; earlier schedules remain visible on their original discussion notes.
+- Completing a follow-up clears the current appointment, preserves all discussion history, and leaves any unsaved note in the composer. Completing an already-cleared reminder is safe to repeat.
+- Due-today and overdue filter counts respect the current name and status filters. An elapsed appointment today appears in both counts; each lead is still shown once in the list.
 - Status changes preserve notes and scheduled dates. Won and Lost remain available in the list and filters.
 - Notes are required, trimmed, and limited to 5,000 characters. Names are limited to 120 characters, company names to 160, and phone numbers to 40. Phone is free text to accommodate international formats.
 - Demo appointments are generated relative to the seed date in India Standard Time. Browsers in other timezones display those same appointments in their own local time. Re-running seed does not shift existing appointments.
@@ -121,6 +127,7 @@ The API uses SQLModel's timezone-aware storage and one database transaction for 
 | GET | `/api/leads/{id}` | One lead with its latest-note summary |
 | POST | `/api/leads` | Create a lead (`201`) |
 | PATCH | `/api/leads/{id}` | Change status (`200`) |
+| DELETE | `/api/leads/{id}/follow-up` | Complete the current follow-up (`200` with updated lead) |
 | GET | `/api/leads/{id}/discussions` | Full history, newest first |
 | POST | `/api/leads/{id}/discussions` | Save note and optional follow-up (`201`) |
 
@@ -146,15 +153,18 @@ npx playwright install chromium
 npm test
 ```
 
-Browser tests start their own API and frontend on ports `18000` and `3100`, using a separate ignored `backend/e2e.db`. They cover the full create → discuss → schedule → change status → reload flow, filtering, search, failed saves, load retry, keyboard focus, overdue labels, and mobile overflow. Unit tests cover local-day boundaries and stable grouping. API tests cover validation, persistence, seed safety, timestamp ties, and transaction rollback.
+Browser tests start their own API and frontend on ports `18000` and `3100`, using a separate ignored `backend/e2e.db`. They cover the full create → discuss → schedule → change status → reload flow, combined filters, completion, retained drafts, failed requests, load retry, keyboard focus, overdue labels, and mobile overflow. Unit tests cover local-day boundaries and stable grouping. API tests cover validation, persistence, seed safety, timestamp ties, completion history, and transaction rollback.
 
-Verified on 13 October 2026: 10 API tests, 6 grouping/date tests, and 10 browser tests passed; TypeScript and the production build passed. The Docker build completed the working flow, and an API container restart preserved the new lead, note, status, and follow-up. Manual browser checks covered 375px phones, tablets, phone rotation, and reduced motion. Mobile checks used Chromium emulation, not physical devices or Safari.
+GitHub Actions runs API tests, grouping tests in UTC and America/Los_Angeles, a production build (including TypeScript), and the desktop/mobile browser suite on pushes to `main` and pull requests. It uses read-only repository permissions and requires no secrets.
+
+Verified on 13 October 2026: 11 API tests, 8 grouping/date tests, and 16 browser tests passed; TypeScript and the production build passed. The Docker build completed the working flow, and an API container restart preserved the new lead, note, status, and follow-up. Manual browser checks covered 375px phones, tablets, phone rotation, and reduced motion. Mobile checks used Chromium emulation, not physical devices or Safari.
 
 ## Screenshots
 
 - [Workspace](docs/screenshots/workspace.png)
 - [Add lead](docs/screenshots/add-lead.png)
 - [Discussion timeline](docs/screenshots/timeline.png)
+- [Overdue follow-up focus](docs/screenshots/follow-ups.png)
 - [Mobile workspace](docs/screenshots/mobile.png)
 
 ## Scope and AI use
