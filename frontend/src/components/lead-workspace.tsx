@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUpRight, CalendarClock, ChevronRight, CircleAlert, ListFilter, Plus, Search, Users, X } from "lucide-react";
+import { CalendarClock, ChevronRight, CircleAlert, ListFilter, Plus, Search, Users, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { formatDate, formatTime, groupLeads, isToday, statuses, timeAgo, type Lead, type Status } from "@/lib/leads";
 import AddLeadDialog from "./add-lead-dialog";
@@ -70,7 +70,7 @@ export default function LeadWorkspace() {
   return <>
     <a href="#leads" className="skip-link">Skip to leads</a>
     <header className="app-header"><div className="header-inner">
-      <a href="/" className="brand" aria-label="LeadFlow home"><span className="brand-mark"><ArrowUpRight size={22} strokeWidth={2.3} aria-hidden="true" /></span>LeadFlow</a>
+      <a href="/" className="brand" aria-label="LeadFlow home"><img className="brand-mark" src="/icon.svg" width={36} height={36} alt="" />LeadFlow</a>
       <span className="header-date">{now?.toLocaleDateString("en", { weekday: "long", month: "long", day: "numeric" })}</span>
     </div></header>
     <main id="leads" className="workspace" tabIndex={-1}>
