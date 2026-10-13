@@ -1,0 +1,25 @@
+services:
+  api:
+    build: ./backend
+    environment:
+      DATABASE_URL: sqlite:////data/leadflow.db
+    volumes:
+      - leadflow-data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  web:
+    build:
+      context: ./frontend
+      args:
+        API_URL: http://api:8000
+    ports:
+      - "127.0.0.1:3200:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  leadflow-data:

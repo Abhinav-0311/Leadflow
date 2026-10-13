@@ -30,6 +30,7 @@ def test_lead_defaults_validation_and_missing_ids(client):
     assert lead["name"] == "Alex" and lead["status"] == "New"
     assert lead["last_note"] is None and lead["follow_up_at"] is None
     assert lead["created_at"].endswith("Z")
+    assert client.get(response.headers["location"]).json()["id"] == lead["id"]
     assert client.get("/api/leads/999/discussions").status_code == 404
     assert client.patch("/api/leads/999", json={"status": "Won"}).status_code == 404
     assert client.post("/api/leads/999/discussions", json={"note": "Hello"}).status_code == 404
@@ -97,3 +98,22 @@ def test_seed_is_non_destructive(database_url):
         assert len(session.exec(select(Lead)).all()) == 7
         assert len(session.exec(select(Discussion)).all()) == 14
     engine.dispose()
+
+
+def test_failed_transaction_rolls_back_note_and_follow_up(database_url, monkeypatch):
+    with TestClient(create_app(database_url), raise_server_exceptions=False) as client:
+        lead_id = client.post("/api/leads", json={"name": "Alex"}).json()["id"]
+
+        def fail_after_flush(session):
+            session.flush()
+            raise RuntimeError("Simulated storage failure")
+
+        with monkeypatch.context() as patch:
+            patch.setattr(Session, "commit", fail_after_flush)
+            response = client.post(f"/api/leads/{lead_id}/discussions", json={
+                "note": "This must not be stored", "follow_up_at": "2026-10-14T09:00:00Z",
+            })
+            assert response.status_code == 500
+            assert "Simulated" not in response.text
+        assert client.get(f"/api/leads/{lead_id}/discussions").json() == []
+        assert client.get(f"/api/leads/{lead_id}").json()["follow_up_at"] is None
