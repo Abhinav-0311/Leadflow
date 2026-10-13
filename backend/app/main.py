@@ -108,6 +108,15 @@ def create_app(database_url: str | None = None) -> FastAPI:
         session.refresh(lead)
         return lead_summary(session, lead)
 
+    @app.delete("/api/leads/{lead_id}/follow-up", response_model=LeadRead)
+    def complete_follow_up(lead_id: int, session: Session = Depends(get_session)):
+        lead = get_lead(lead_id, session)
+        lead.follow_up_at = None
+        session.add(lead)
+        session.commit()
+        session.refresh(lead)
+        return lead_summary(session, lead)
+
     @app.get("/api/leads/{lead_id}/discussions", response_model=list[DiscussionRead])
     def discussions(lead_id: int, session: Session = Depends(get_session)):
         get_lead(lead_id, session)

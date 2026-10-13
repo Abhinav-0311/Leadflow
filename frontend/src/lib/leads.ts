@@ -1,5 +1,6 @@
 export const statuses = ["New", "Contacted", "Qualified", "Proposal Sent", "Won", "Lost"] as const;
 export type Status = (typeof statuses)[number];
+export type Attention = "All" | "Today" | "Overdue";
 
 export type Lead = {
   id: number;
@@ -27,16 +28,24 @@ export function isToday(value: string, now: Date) {
     && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
 }
 
-export function groupLeads(leads: Lead[], query: string, status: Status | "All", now: Date) {
-  const matching = leads.filter(lead => lead.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
+export function isOverdue(value: string | null, now: Date) {
+  return value !== null && Date.parse(value) < now.getTime();
+}
+
+export function groupLeads(leads: Lead[], query: string, status: Status | "All", now: Date, attention: Attention = "All") {
+  const scoped = leads.filter(lead => lead.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
     && (status === "All" || lead.status === status));
+  const todayCount = scoped.filter(lead => lead.follow_up_at && isToday(lead.follow_up_at, now)).length;
+  const overdueCount = scoped.filter(lead => isOverdue(lead.follow_up_at, now)).length;
+  const matching = scoped.filter(lead => attention === "All" || (attention === "Today"
+    ? lead.follow_up_at && isToday(lead.follow_up_at, now) : isOverdue(lead.follow_up_at, now)));
   const today = matching.filter(lead => lead.follow_up_at && isToday(lead.follow_up_at, now))
     .sort((a, b) => Date.parse(a.follow_up_at!) - Date.parse(b.follow_up_at!) || a.id - b.id);
   const pinned = new Set(today.map(lead => lead.id));
   const remaining = matching.filter(lead => !pinned.has(lead.id)).sort((a, b) =>
     Date.parse(b.last_discussion_at || b.created_at) - Date.parse(a.last_discussion_at || a.created_at)
     || b.id - a.id);
-  return { today, remaining };
+  return { today, remaining, todayCount, overdueCount };
 }
 
 export function timeAgo(value: string, now: Date) {

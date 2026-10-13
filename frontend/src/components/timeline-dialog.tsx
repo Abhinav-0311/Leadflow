@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { CalendarClock, Check, LoaderCircle, MessageSquare, Phone, Send } from "lucide-react";
 import { api } from "@/lib/api";
-import { formatDate, formatTime, statuses, timeAgo, type Discussion, type Lead, type Status } from "@/lib/leads";
+import { formatDate, formatTime, isOverdue, isToday, statuses, timeAgo, type Discussion, type Lead, type Status } from "@/lib/leads";
 import Dialog from "./dialog";
 
 export default function TimelineDialog({ lead, now, onClose, onUpdated }: {
@@ -15,11 +15,11 @@ export default function TimelineDialog({ lead, now, onClose, onUpdated }: {
   const [note, setNote] = useState("");
   const [schedule, setSchedule] = useState(false);
   const [followUp, setFollowUp] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [statusSaving, setStatusSaving] = useState(false);
+  const [pending, setPending] = useState<"note" | "status" | "follow-up" | null>(null);
+  const [actionError, setActionError] = useState("");
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
-  const busy = saving || statusSaving;
+  const busy = pending !== null;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -36,15 +36,15 @@ export default function TimelineDialog({ lead, now, onClose, onUpdated }: {
   }
 
   async function changeStatus(status: Status) {
-    setStatusSaving(true); setError(""); setFeedback("");
+    setPending("status"); setActionError(""); setFeedback("");
     try {
       onUpdated(await api<Lead>(`/leads/${lead.id}`, { method: "PATCH", body: JSON.stringify({ status }) }));
       setFeedback("Status updated.");
-    } catch (error) { setError((error as Error).message); }
-    finally { setStatusSaving(false); }
+    } catch (error) { setActionError((error as Error).message); }
+    finally { setPending(null); }
   }
 
-  return <Dialog titleId="timeline-title" wide onClose={close}>
+  return <Dialog titleId="timeline-title" wide onClose={close} busy={busy}>
     <header className="timeline-header">
       <span className="eyebrow">LEAD DETAILS</span>
       <h2 id="timeline-title">{lead.name}</h2>
@@ -60,8 +60,25 @@ export default function TimelineDialog({ lead, now, onClose, onUpdated }: {
           onChange={event => changeStatus(event.target.value as Status)}>
           {statuses.map(status => <option key={status}>{status}</option>)}
         </select>
-        {statusSaving && <LoaderCircle size={15} className="spin" aria-label="Updating status" />}
+        {pending === "status" && <LoaderCircle size={15} className="spin" aria-label="Updating status" />}
       </div>
+      {lead.follow_up_at && <div className={`current-appointment ${isOverdue(lead.follow_up_at, now) ? "appointment-overdue" : ""}`}>
+        <CalendarClock size={17} aria-hidden="true" />
+        <div><span>{isOverdue(lead.follow_up_at, now) ? "Overdue follow-up" : "Next follow-up"}</span>
+          <strong>{isToday(lead.follow_up_at, now) ? "Today" : formatDate(lead.follow_up_at)} at {formatTime(lead.follow_up_at)}</strong></div>
+        <button type="button" className="button button-secondary" disabled={busy} onClick={async () => {
+          setPending("follow-up"); setActionError(""); setFeedback("");
+          try {
+            onUpdated(await api<Lead>(`/leads/${lead.id}/follow-up`, { method: "DELETE" }));
+            setFeedback("Follow-up completed.");
+          } catch (error) { setActionError((error as Error).message); }
+          finally { setPending(null); }
+        }}>
+          {pending === "follow-up" ? <LoaderCircle size={14} className="spin" aria-hidden="true" /> : <Check size={14} aria-hidden="true" />}
+          {pending === "follow-up" ? "Completing…" : "Mark complete"}
+        </button>
+      </div>}
+      {actionError && <p className="form-error action-error" role="alert">{actionError}</p>}
     </header>
     <section className="history" aria-label="Discussion history" aria-busy={!history && !loadError}>
       <div className="history-heading"><h3>Discussion history</h3><span>{history ? `${history.length} ${history.length === 1 ? "note" : "notes"}` : ""}</span></div>
@@ -87,7 +104,7 @@ export default function TimelineDialog({ lead, now, onClose, onUpdated }: {
       event.preventDefault();
       if (busy || !history) return;
       if (!note.trim()) { setError("Write a discussion note before saving."); return; }
-      setSaving(true); setError(""); setFeedback("");
+      setPending("note"); setError(""); setFeedback("");
       try {
         const saved = await api<{ lead: Lead; discussion: Discussion }>(`/leads/${lead.id}/discussions`, {
           method: "POST", body: JSON.stringify({ note: note.trim(),
@@ -97,7 +114,7 @@ export default function TimelineDialog({ lead, now, onClose, onUpdated }: {
         onUpdated(saved.lead);
         setNote(""); setSchedule(false); setFollowUp(""); setFeedback("Discussion saved.");
       } catch (error) { setError((error as Error).message); }
-      finally { setSaving(false); }
+      finally { setPending(null); }
     }}>
       <label htmlFor="discussion-note" className="composer-label">Log a discussion</label>
       <textarea id="discussion-note" placeholder="What did you talk about?" rows={3} required maxLength={5000}
@@ -111,12 +128,12 @@ export default function TimelineDialog({ lead, now, onClose, onUpdated }: {
       {schedule && <div className="follow-up-fields"><label htmlFor="follow-up-date">Date & time <span className="optional">Your local time</span></label>
         <input id="follow-up-date" type="datetime-local" required value={followUp} disabled={busy}
           onChange={event => setFollowUp(event.target.value)} /></div>}
-      {!schedule && lead.follow_up_at && <p className="field-hint current-follow-up">Current follow-up: {formatDate(lead.follow_up_at)}, {formatTime(lead.follow_up_at)}. Kept unless rescheduled.</p>}
+      {!schedule && lead.follow_up_at && <p className="field-hint current-follow-up">Your current follow-up stays in place unless you reschedule it.</p>}
       {error && <p className="form-error" role="alert">{error}</p>}
       <footer className="composer-footer">
         <span className="save-feedback" role="status">{feedback && <><Check size={14} aria-hidden="true" />{feedback}</>}</span>
         <button className="button button-primary" disabled={busy || !history}>
-          {saving ? <><LoaderCircle size={15} className="spin" aria-hidden="true" /> Saving…</>
+          {pending === "note" ? <><LoaderCircle size={15} className="spin" aria-hidden="true" /> Saving…</>
             : <><Send size={15} aria-hidden="true" /> Save discussion</>}
         </button>
       </footer>

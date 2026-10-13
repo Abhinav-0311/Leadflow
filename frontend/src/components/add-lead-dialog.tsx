@@ -18,7 +18,7 @@ export default function AddLeadDialog({ onClose, onSaved }: { onClose: () => voi
     onClose();
   }
 
-  return <Dialog titleId="add-lead-title" onClose={close}>
+  return <Dialog titleId="add-lead-title" onClose={close} busy={saving}>
     <header className="modal-header">
       <div className="modal-symbol"><UserRoundPlus size={22} aria-hidden="true" /></div>
       <h2 id="add-lead-title">Add a lead</h2>

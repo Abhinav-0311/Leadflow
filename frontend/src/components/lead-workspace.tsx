@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react";
 import { CalendarClock, ChevronRight, CircleAlert, ListFilter, Plus, Search, Users, X } from "lucide-react";
 import { api } from "@/lib/api";
-import { formatDate, formatTime, groupLeads, isToday, statuses, timeAgo, type Lead, type Status } from "@/lib/leads";
+import { formatDate, formatTime, groupLeads, isOverdue, isToday, statuses, timeAgo, type Attention, type Lead, type Status } from "@/lib/leads";
 import AddLeadDialog from "./add-lead-dialog";
 import TimelineDialog from "./timeline-dialog";
 
 function LeadRow({ lead, now, onClick }: { lead: Lead; now: Date; onClick: () => void }) {
-  const overdue = lead.follow_up_at && Date.parse(lead.follow_up_at) < now.getTime();
+  const overdue = isOverdue(lead.follow_up_at, now);
   const today = lead.follow_up_at && isToday(lead.follow_up_at, now);
   return <button className="lead-row" onClick={onClick} aria-label={`Open ${lead.name}`}>
     <span className="lead-identity">
@@ -40,6 +40,7 @@ export default function LeadWorkspace() {
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<Status | "All">("All");
+  const [attention, setAttention] = useState<Attention>("All");
   const [adding, setAdding] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [now, setNow] = useState<Date | null>(null);
@@ -63,9 +64,9 @@ export default function LeadWorkspace() {
   }, []);
 
   const selected = leads.find(lead => lead.id === selectedId);
-  const groups = groupLeads(leads, query, status, now || new Date(0));
+  const groups = groupLeads(leads, query, status, now || new Date(0), attention);
   const visible = groups.today.length + groups.remaining.length;
-  const filtered = query.trim() !== "" || status !== "All";
+  const filtered = query.trim() !== "" || status !== "All" || attention !== "All";
 
   return <>
     <a href="#leads" className="skip-link">Skip to leads</a>
@@ -84,7 +85,16 @@ export default function LeadWorkspace() {
           <input id="lead-search" type="search" placeholder="Search by name…" value={query} onChange={event => setQuery(event.target.value)} />
           {query && <button className="search-clear" aria-label="Clear search" onClick={() => setQuery("")}><X size={14} aria-hidden="true" /></button>}
         </div>
-        <span className="toolbar-count">{loading ? "Loading leads…" : error ? "" : `${visible} ${visible === 1 ? "lead" : "leads"}${filtered ? " found" : " in your workspace"}`}</span>
+        <div className="attention-filters" role="group" aria-label="Filter by follow-up">
+          <button className={`attention-button ${attention === "Today" ? "active" : ""}`} disabled={loading || Boolean(error)}
+            aria-pressed={attention === "Today"} onClick={() => setAttention(attention === "Today" ? "All" : "Today")}>
+            <CalendarClock size={14} aria-hidden="true" />Due today <span>{groups.todayCount}</span>
+          </button>
+          <button className={`attention-button attention-overdue ${attention === "Overdue" ? "active" : ""}`} disabled={loading || Boolean(error)}
+            aria-pressed={attention === "Overdue"} onClick={() => setAttention(attention === "Overdue" ? "All" : "Overdue")}>
+            <CircleAlert size={14} aria-hidden="true" />Overdue <span>{groups.overdueCount}</span>
+          </button>
+        </div>
       </div>
       <div className="filter-bar" role="group" aria-label="Filter leads by status">
         <ListFilter size={16} className="filter-icon" aria-hidden="true" />
@@ -98,9 +108,9 @@ export default function LeadWorkspace() {
         <h2>Couldn’t load your leads</h2><p role="alert">{error}</p>
         <button className="button button-secondary" onClick={() => setAttempt(value => value + 1)}>Try again</button></div>
         : !visible ? <div className="empty-state"><Users size={30} aria-hidden="true" />
-          <h2>{filtered ? "No matching leads" : "Start with a conversation"}</h2>
+          <h2>{attention === "Today" ? "No follow-ups due today" : attention === "Overdue" ? "No overdue follow-ups" : filtered ? "No matching leads" : "Start with a conversation"}</h2>
           <p>{filtered ? "Try another name or clear your filters." : "Add your first lead. The next steps will live here."}</p>
-          {filtered ? <button className="button button-secondary" onClick={() => { setQuery(""); setStatus("All"); }}>Clear filters</button>
+          {filtered ? <button className="button button-secondary" onClick={() => { setQuery(""); setStatus("All"); setAttention("All"); }}>Clear filters</button>
             : <button className="button button-primary" onClick={() => setAdding(true)}><Plus size={16} aria-hidden="true" />Add your first lead</button>}</div>
         : <>
           {groups.today.length > 0 && <section className="lead-section today-section" aria-labelledby="today-title">
@@ -119,7 +129,7 @@ export default function LeadWorkspace() {
       <div className="sr-only" role="status">{announcement}</div>
     </main>
     {adding && <AddLeadDialog onClose={() => setAdding(false)} onSaved={lead => {
-      setLeads(current => [lead, ...current]); setAdding(false); setQuery(""); setStatus("All");
+      setLeads(current => [lead, ...current]); setAdding(false); setQuery(""); setStatus("All"); setAttention("All");
       setAnnouncement(`${lead.name} added.`);
     }} />}
     {selected && now && <TimelineDialog key={selected.id} lead={selected} now={now} onClose={() => setSelectedId(null)}

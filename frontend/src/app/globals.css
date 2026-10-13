@@ -50,7 +50,12 @@ h1 { font-size: 32px; font-weight: 630; letter-spacing: -1.2px; line-height: 1.2
 .search-box input::-webkit-search-cancel-button { display: none; }
 input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .search-clear { width: 26px; height: 26px; border: 0; padding: 4px; display: grid; place-items: center; border-radius: 5px; background: transparent; }
-.toolbar-count { color: var(--muted); font-size: 12px; }
+.attention-filters { display: flex; align-items: center; gap: 8px; }
+.attention-button { display: inline-flex; align-items: center; gap: 7px; min-height: 38px; padding: 0 11px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: #54637b; font-size: 12px; transition: background-color 150ms, border-color 150ms; }
+.attention-button > span { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; padding-left: 3px; }
+.attention-button.active { color: #2854c4; background: #edf2ff; border-color: #d6e1fc; }
+.attention-overdue { color: var(--red); }
+.attention-overdue.active { color: var(--red); background: #fdf0f0; border-color: #f0d6d7; }
 .filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin: 19px 0 32px; }
 .filter-icon { color: #7c8595; margin-right: 8px; }
 .filter-button { padding: 8px 12px; min-height: 35px; background: transparent; border: 1px solid transparent; border-radius: 7px; font-size: 12px; color: #606b7d; transition: background-color 150ms, color 150ms; }
@@ -129,6 +134,13 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
 .lead-contact > span { display: inline-flex; align-items: center; gap: 5px; overflow-wrap: anywhere; }
 .status-control { display: flex; align-items: center; gap: 12px; margin-top: 20px; color: var(--muted); font-size: 12px; }
 .status-control select { border: 1px solid #dfe3eb; border-radius: 6px; background: #fff; padding: 7px 28px 7px 9px; color: #46536c; font-size: 12px; min-height: 34px; }
+.current-appointment { display: flex; align-items: center; gap: 11px; margin-top: 20px; padding: 12px; border: 1px solid #dce5fa; border-radius: 9px; background: #f5f8ff; color: #3455a2; }
+.current-appointment > div { display: flex; flex: 1; flex-direction: column; gap: 3px; }
+.current-appointment span { font-size: 10px; }
+.current-appointment strong { color: #3b485e; font-size: 12px; font-weight: 550; }
+.current-appointment .button { min-height: 34px; padding: 0 10px; font-size: 11px; }
+.appointment-overdue { color: var(--red); background: #fff7f7; border-color: #f0dcdc; }
+.action-error { margin: 14px 0 0; }
 .history { padding: 24px 30px 10px; max-height: 310px; min-height: 160px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #d5dae4 transparent; }
 .history-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
 .history-heading h3 { font-size: 12px; font-weight: 600; }
@@ -167,6 +179,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
   .button-primary:hover:not(:disabled) { background: var(--blue-hover); }
   .button-secondary:hover:not(:disabled), .icon-button:hover, .search-clear:hover { background: #f1f3f7; }
   .filter-button:hover:not(.active) { background: #eef1f5; color: #35435c; }
+  .attention-button:hover:not(:disabled):not(.active) { background: #eef1f5; }
   .lead-row:hover { background: #fafbfe; }
   .today-section .lead-row:hover { background: #edf3ff; }
   .lead-row:hover .row-chevron { color: var(--blue); }
@@ -184,7 +197,8 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
   .page-heading { gap: 12px; align-items: flex-start; margin-bottom: 24px; }
   .page-heading p { max-width: 240px; font-size: 12px; }
   .page-heading > .button { min-height: 38px; padding: 0 12px; font-size: 12px; margin-top: 2px; }
-  .toolbar-count { display: none; }
+  .toolbar { flex-wrap: wrap; gap: 12px; }
+  .attention-filters { width: 100%; }
   .search-box { width: 100%; }
   .filter-bar { gap: 4px; margin: 15px 0 26px; }
   .filter-icon { display: none; }
@@ -212,6 +226,7 @@ input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
   .lead-fields { padding-left: 24px; padding-right: 24px; }
   .modal-footer { padding-left: 24px; padding-right: 24px; }
   .composer-options { flex-wrap: wrap; }
+  .current-appointment { flex-wrap: wrap; }
   .composer-footer { flex-wrap: wrap; }
   .composer-footer .button { margin-left: auto; }
   .lead-fields input, .composer textarea, .follow-up-fields input { font-size: 16px; }

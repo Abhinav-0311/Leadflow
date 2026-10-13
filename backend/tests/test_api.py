@@ -117,3 +117,21 @@ def test_failed_transaction_rolls_back_note_and_follow_up(database_url, monkeypa
             assert "Simulated" not in response.text
         assert client.get(f"/api/leads/{lead_id}/discussions").json() == []
         assert client.get(f"/api/leads/{lead_id}").json()["follow_up_at"] is None
+
+
+def test_completing_follow_up_preserves_history_and_survives_restart(client, database_url):
+    lead_id = client.post("/api/leads", json={"name": "Alex"}).json()["id"]
+    discussion_path = f"/api/leads/{lead_id}/discussions"
+    client.post(discussion_path, json={"note": "Call tomorrow", "follow_up_at": "2026-10-14T09:00:00Z"})
+    before = client.get(discussion_path).json()
+    path = f"/api/leads/{lead_id}/follow-up"
+    result = client.delete(path)
+    assert result.status_code == 200
+    assert result.json()["follow_up_at"] is None
+    assert result.json()["last_note"] == "Call tomorrow"
+    assert client.get(discussion_path).json() == before
+    assert client.delete(path).status_code == 200
+    assert client.delete("/api/leads/999/follow-up").status_code == 404
+    with TestClient(create_app(database_url)) as restarted:
+        assert restarted.get(f"/api/leads/{lead_id}").json()["follow_up_at"] is None
+        assert restarted.get(discussion_path).json() == before

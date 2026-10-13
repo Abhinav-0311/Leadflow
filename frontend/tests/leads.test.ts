@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { groupLeads, isToday, timeAgo, type Lead } from "../src/lib/leads.ts";
+import { groupLeads, isOverdue, isToday, timeAgo, type Lead } from "../src/lib/leads.ts";
 
 const now = new Date(2026, 9, 13, 14, 0);
 const at = (day: number, hour: number) => new Date(2026, 9, day, hour).toISOString();
@@ -53,4 +53,31 @@ test("relative times handle minutes, days, and clock skew", () => {
   assert.equal(timeAgo(at(14, 0), now), "Just now");
   assert.equal(timeAgo(new Date(now.getTime() - 120_000).toISOString(), now), "2 minutes ago");
   assert.equal(timeAgo(at(11, 14), now), "2 days ago");
+});
+
+test("attention filters combine with status and search; counts reflect that scope", () => {
+  const leads = [lead(1, { name: "Alex One", follow_up_at: at(13, 9) }),
+    lead(2, { name: "Alex Two", follow_up_at: at(13, 16) }),
+    lead(3, { name: "Alex Three", follow_up_at: at(12, 9) }),
+    lead(4, { name: "Someone Else", status: "Won", follow_up_at: at(13, 9) })];
+  const overdue = groupLeads(leads, "alex", "New", now, "Overdue");
+  assert.deepEqual(overdue.today.map(l => l.id), [1]);
+  assert.deepEqual(overdue.remaining.map(l => l.id), [3]);
+  assert.equal(overdue.todayCount, 2);
+  assert.equal(overdue.overdueCount, 2);
+  const today = groupLeads(leads, "alex", "New", now, "Today");
+  assert.deepEqual(today.today.map(l => l.id), [1, 2]);
+  assert.deepEqual(today.remaining, []);
+});
+
+test("completing a follow-up removes it from both attention counts", () => {
+  const completed = lead(1, { follow_up_at: null });
+  const groups = groupLeads([completed], "", "All", now, "Overdue");
+  assert.equal(groups.todayCount, 0);
+  assert.equal(groups.overdueCount, 0);
+  assert.deepEqual(groups.today, []);
+  assert.deepEqual(groups.remaining, []);
+  assert.equal(isOverdue(null, now), false);
+  assert.equal(isOverdue(now.toISOString(), now), false);
+  assert.equal(isOverdue(at(13, 9), now), true);
 });
