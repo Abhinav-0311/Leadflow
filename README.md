@@ -4,6 +4,8 @@
 
 A single-screen CRM for tracking leads, logging discussions, and managing follow-ups. Built for the PravarAI fullstack internship assessment with Next.js, TypeScript, FastAPI, and SQLite.
 
+[Watch the demo](https://youtu.be/Z3dLRpv_MB0)
+
 ![LeadFlow workspace](docs/screenshots/workspace.png)
 
 ## Run with Docker
